@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel dos Bairros e Distritos de Camaçari - SEDUR/PMC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .text-violet {
+            color: #8b5cf6;
+        }
+        .text-lilac {
+            color: #c084fc;
+        }
+        .footer-text {
+            font-size: 0.75rem;
+            color: #6b7280;
+            text-align: center;
+            padding-top: 1rem;
+            border-top: 1px solid #e5e7eb;
+            margin-top: 1.5rem;
+        }
+        .card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            padding: 1.5rem;
+            transition: transform 0.2s;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .custom-select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .table-header {
+            background-color: #f3e8ff; /* Cor lilás bem clara */
+        }
+        .progress-bar {
+            background-color: #e5e7eb;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            height: 1.25rem;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 0.5rem;
+            text-align: right;
+            padding-right: 0.5rem;
+            color: #374151;
+            font-weight: 600;
+            font-size: 0.75rem;
+            line-height: 1.25rem;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-violet">Um Olhar Sobre os Bairros e Distritos Urbanos de Camaçari</h1>
+            <p class="text-gray-600 mt-2">Painel de Análise Territorial e Demográfica</p>
+        </header>
+
+        <main class="space-y-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="md:col-span-1 card">
+                    <label for="distrito-filter" class="block text-sm font-bold text-gray-700 mb-2">Filtrar por Distrito:</label>
+                    <select id="distrito-filter" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-violet-500 focus:border-violet-500 custom-select">
+                        <option value="todos">Todos os Distritos</option>
+                        <option value="Sede">Sede</option>
+                        <option value="Abrantes">Abrantes</option>
+                        <option value="Monte Gordo">Monte Gordo</option>
+                    </select>
+                </div>
+                 <div class="card text-center">
+                    <h3 class="text-lg font-semibold text-gray-800">Total de Bairros</h3>
+                    <p id="total-bairros" class="text-3xl font-bold text-violet mt-2">88</p>
+                </div>
+                 <div class="card text-center">
+                    <h3 class="text-lg font-semibold text-gray-800">População Urbana Total (2022)</h3>
+                    <p id="total-populacao" class="text-3xl font-bold text-violet mt-2">293.928</p>
+                </div>
+            </div>
+
+            <div class="card">
+                 <h2 class="text-2xl font-bold text-violet mb-4">Análise Comparativa dos Bairros</h2>
+                 <p class="text-gray-600 mb-6">Selecione uma variável para comparar os bairros no gráfico. Passe o mouse sobre as barras para ver os valores.</p>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2">
+                         <canvas id="bairrosChart" style="height: 400px;"></canvas>
+                    </div>
+                    <div class="lg:col-span-1">
+                        <label for="chart-variable" class="block text-sm font-bold text-gray-700 mb-2">Variável de Comparação:</label>
+                        <select id="chart-variable" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-violet-500 focus:border-violet-500 mb-4 custom-select">
+                            <option value="populacao" selected>População (2022)</option>
+                            <option value="domicilios">Domicílios (CNEFE 2022)</option>
+                            <option value="area">Área (Ha)</option>
+                            <option value="densidade">Densidade Demográfica (Hab/Ha)</option>
+                        </select>
+                        <label for="bairro-count" class="block text-sm font-bold text-gray-700 mb-2">Número de Bairros no Gráfico:</label>
+                        <input type="range" id="bairro-count" min="5" max="30" value="10" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                         <div class="text-center text-sm text-gray-600 mt-2">
+                           Top <span id="bairro-count-label">10</span> Bairros
+                        </div>
+                    </div>
+                </div>
+                <div class="footer-text">
+                    Infográfico elaborado pela Coordenadoria de Planejamento e Projetos – (CPP) / Diretoria de Urbanismo (DIRURB) / SEDUR (PMC)
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="text-2xl font-bold text-violet mb-6">Análise Detalhada dos Distritos</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="card border-2 border-violet-200">
+                        <div class="text-center mb-4">
+                            <h3 class="text-xl font-bold text-violet">Distrito Sede</h3>
+                            <p class="text-sm text-gray-600">Centro de Gravitação Municipal</p>
+                        </div>
+                        <div class="space-y-3 text-gray-700">
+                            <p><strong>População:</strong> 183.359 hab.</p>
+                            <p><strong>Área Urbana:</strong> 151,0 km²</p>
+                            <p><strong>Densidade Urbana:</strong> 12,15 hab/ha</p>
+                            <p><strong>Densidade "Real":</strong> 26,82 hab/ha</p>
+                            <div class="pt-2">
+                                <p class="text-sm font-semibold mb-1">População do Município (61,0%)</p>
+                                <div class="progress-bar"><div class="progress-bar-fill bg-violet-400" style="width: 61%;">61,0%</div></div>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold mb-1">Território Urbano (42,2%)</p>
+                                <div class="progress-bar"><div class="progress-bar-fill bg-lilac" style="width: 42.2%;">42,2%</div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card border-2 border-violet-200">
+                        <div class="text-center mb-4">
+                            <h3 class="text-xl font-bold text-violet">Distrito Abrantes</h3>
+                            <p class="text-sm text-gray-600">Eixo Turístico e de Ligação</p>
+                        </div>
+                        <div class="space-y-3 text-gray-700">
+                            <p><strong>População:</strong> 80.413 hab.</p>
+                            <p><strong>Área Urbana:</strong> 127,7 km²</p>
+                            <p><strong>Densidade Urbana:</strong> 6,30 hab/ha</p>
+                            <p class="text-transparent"><strong>-</strong></p> <div class="pt-2">
+                                <p class="text-sm font-semibold mb-1">População do Município (26,8%)</p>
+                                <div class="progress-bar"><div class="progress-bar-fill bg-violet-400" style="width: 26.8%;">26,8%</div></div>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold mb-1">Território Urbano (35,7%)</p>
+                                <div class="progress-bar"><div class="progress-bar-fill bg-lilac" style="width: 35.7%;">35,7%</div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card border-2 border-violet-200">
+                        <div class="text-center mb-4">
+                            <h3 class="text-xl font-bold text-violet">Distrito Monte Gordo</h3>
+                            <p class="text-sm text-gray-600">Potencial Turístico e Residencial</p>
+                        </div>
+                         <div class="space-y-3 text-gray-700">
+                            <p><strong>População:</strong> 30.156 hab.</p>
+                            <p><strong>Área Urbana:</strong> 78,6 km²</p>
+                            <p><strong>Densidade Urbana:</strong> 3,84 hab/ha</p>
+                             <p class="text-transparent"><strong>-</strong></p> <div class="pt-2">
+                                <p class="text-sm font-semibold mb-1">População do Município (10,0%)</p>
+                                <div class="progress-bar"><div class="progress-bar-fill bg-violet-400" style="width: 10%;">10,0%</div></div>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold mb-1">Território Urbano (22,0%)</p>
+                                <div class="progress-bar"><div class="progress-bar-fill bg-lilac" style="width: 22%;">22,0%</div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                 <div class="footer-text">
+                    Infográfico elaborado pela Coordenadoria de Planejamento e Projetos – (CPP) / Diretoria de Urbanismo (DIRURB) / SEDUR (PMC)
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="text-2xl font-bold text-violet mb-4">Explore um Bairro</h2>
+                <label for="bairro-select" class="block text-sm font-bold text-gray-700 mb-2">Selecione um Bairro para ver os detalhes:</label>
+                <select id="bairro-select" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-violet-500 focus:border-violet-500 custom-select"></select>
+
+                <div id="bairro-detalhes" class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 hidden">
+                    </div>
+                 <div class="footer-text">
+                    Infográfico elaborado pela Coordenadoria de Planejamento e Projetos – (CPP) / Diretoria de Urbanismo (DIRURB) / SEDUR (PMC)
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="text-2xl font-bold text-violet mb-4">Notas Técnicas</h2>
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="text-xl font-bold text-lilac">Metodologia</h3>
+                        <ul class="list-disc list-inside text-gray-700 mt-2 space-y-2">
+                             <li>
+                                <strong>Estimativa Populacional dos Bairros (2022):</strong> Utilizou-se a malha de setores censitários do Censo 2022 e os geodados de endereços do CNEFE 2022 (IBGE), processados em ambiente GIS para estimar a população por bairro.
+                            </li>
+                            <li>
+                                <strong>Cálculo da Densidade Demográfica de Referência:</strong> Para os distritos de Abrantes (6,30 Hab/Ha) e Monte Gordo (3,84 Hab/Ha), usou-se a densidade geral. Para o Distrito Sede, adotou-se a densidade "real" de <strong>26,82 Hab/Ha</strong>, que exclui a área do Polo Industrial para uma análise mais precisa da ocupação residencial.
+                            </li>
+                             <li>
+                                <strong>Classificação da Densidade Demográfica:</strong> Os bairros foram classificados comparando-se sua densidade com a densidade de referência do seu distrito. A classificação segue as faixas percentuais detalhadas na tabela abaixo, permitindo categorizar a ocupação do solo de forma padronizada.
+                            </li>
+                        </ul>
+                        <div class="mt-4 overflow-x-auto">
+                            <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                                <thead class="table-header">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left font-bold text-violet">Classificação</th>
+                                        <th class="px-4 py-2 text-left font-bold text-violet">Faixa de Densidade (em relação à média do distrito)</th>
+                                        <th class="px-4 py-2 text-center font-bold text-violet">Cor de Destaque</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-t">
+                                        <td class="px-4 py-2 font-medium">Muito Baixa</td>
+                                        <td class="px-4 py-2 text-gray-700">Abaixo de 25%</td>
+                                        <td class="px-4 py-2 text-center"><div class="h-5 w-5 rounded-full bg-blue-500 mx-auto"></div></td>
+                                    </tr>
+                                    <tr class="border-t bg-gray-50">
+                                        <td class="px-4 py-2 font-medium">Baixa</td>
+                                        <td class="px-4 py-2 text-gray-700">Entre 25% e 75%</td>
+                                        <td class="px-4 py-2 text-center"><div class="h-5 w-5 rounded-full bg-green-500 mx-auto"></div></td>
+                                    </tr>
+                                    <tr class="border-t">
+                                        <td class="px-4 py-2 font-medium">Média</td>
+                                        <td class="px-4 py-2 text-gray-700">Entre 75% e 200%</td>
+                                         <td class="px-4 py-2 text-center"><div class="h-5 w-5 rounded-full bg-yellow-500 mx-auto"></div></td>
+                                    </tr>
+                                    <tr class="border-t bg-gray-50">
+                                        <td class="px-4 py-2 font-medium">Alta</td>
+                                        <td class="px-4 py-2 text-gray-700">Entre 200% e 400%</td>
+                                         <td class="px-4 py-2 text-center"><div class="h-5 w-5 rounded-full bg-orange-500 mx-auto"></div></td>
+                                    </tr>
+                                    <tr class="border-t">
+                                        <td class="px-4 py-2 font-medium">Muito Alta</td>
+                                        <td class="px-4 py-2 text-gray-700">Acima de 400%</td>
+                                         <td class="px-4 py-2 text-center"><div class="h-5 w-5 rounded-full bg-red-600 mx-auto"></div></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-lilac mt-6">Pontos de Atenção</h3>
+                         <ul class="list-disc list-inside text-gray-700 mt-2 space-y-2">
+                            <li>
+                                <strong>População Nula ou Reduzida:</strong> Bairros como o Polo Industrial, Polo Logístico e Vivea apresentam população zerada ou muito baixa devido ao predomínio de uso não residencial do solo.
+                            </li>
+                             <li>
+                                <strong>Compatibilidade de Malhas Territoriais:</strong> A delimitação oficial dos bairros pela Prefeitura pode não coincidir perfeitamente com os limites dos setores censitários do IBGE.
+                            </li>
+                             <li>
+                                <strong>Impacto de Grandes Áreas de Baixa Densidade:</strong> A presença do Polo Industrial no Distrito Sede distorce a densidade demográfica média geral. A utilização da densidade "real" nesta análise mitiga essa distorção.
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                 <div class="footer-text">
+                    Infográfico elaborado pela Coordenadoria de Planejamento e Projetos – (CPP) / Diretoria de Urbanismo (DIRURB) / SEDUR (PMC)
+                </div>
+            </div>
+             <footer class="text-center text-gray-800 py-8">
+                <h3 class="text-xl font-bold text-violet mb-4">Realização</h3>
+                <p class="font-semibold">Fábio Moura Costa – Urbanista e Msc. em Geografia</p>
+                <p>Coordenadoria de Planejamento e Projetos (CPP)</p>
+                <p>Diretoria de Urbanismo (DIRURB)</p>
+                <p>Secretaria de Desenvolvimento Urbano e Meio Ambiente (SEDUR)</p>
+                <p>Prefeitura Municipal de Camaçari (PMC)</p>
+                <p class="mt-4 text-sm text-gray-600">Camaçari, Bahia - Junho de 2025</p>
+            </footer>
+        </main>
+    </div>
+
+    <script>
+        // Data dos bairros extraída do documento
+        const bairrosData = [
+            { id: 1, nome: "Acajutiba", distrito: "Sede", populacao: 1163, domicilios: 554, area: 10.1, densidade: 115.15, classificacao: "Muito Alta" },
+            { id: 2, nome: "Alphaville", distrito: "Abrantes", populacao: 1066, domicilios: 666, area: 127.0, densidade: 8.39, classificacao: "Média" },
+            { id: 3, nome: "Alto da Bela Vista", distrito: "Sede", populacao: 361, domicilios: 190, area: 3.0, densidade: 120.33, classificacao: "Muito Alta" },
+            { id: 4, nome: "Alto da Cruz", distrito: "Sede", populacao: 3876, domicilios: 1938, area: 44.9, densidade: 86.33, classificacao: "Alta" },
+            { id: 5, nome: "Alto do Triângulo", distrito: "Sede", populacao: 2068, domicilios: 1034, area: 55.1, densidade: 37.53, classificacao: "Média" },
+            { id: 6, nome: "Areias", distrito: "Abrantes", populacao: 2334, domicilios: 1459, area: 537.7, densidade: 4.34, classificacao: "Baixa" },
+            { id: 7, nome: "Arembepe", distrito: "Abrantes", populacao: 16118, domicilios: 10074, area: 2036.2, densidade: 7.92, classificacao: "Média" },
+            { id: 8, nome: "Barra do Jacuípe", distrito: "Monte Gordo", populacao: 4339, domicilios: 5388, area: 787.0, densidade: 5.51, classificacao: "Média" },
+            { id: 9, nome: "Barra do Pojuca", distrito: "Monte Gordo", populacao: 9223, domicilios: 5425, area: 2096.0, densidade: 4.4, classificacao: "Média" },
+            { id: 10, nome: "Bela Vista", distrito: "Sede", populacao: 2177, domicilios: 1146, area: 18.3, densidade: 118.96, classificacao: "Muito Alta" },
+            { id: 11, nome: "Boa Esperança", distrito: "Monte Gordo", populacao: 2048, domicilios: 1280, area: 446.6, densidade: 4.59, classificacao: "Média" },
+            { id: 12, nome: "Boa União", distrito: "Abrantes", populacao: 10411, domicilios: 6507, area: 444.4, densidade: 23.43, classificacao: "Alta" },
+            { id: 13, nome: "Burissatuba", distrito: "Sede", populacao: 4030, domicilios: 1919, area: 51.1, densidade: 78.86, classificacao: "Alta" },
+            { id: 14, nome: "Busca Vida", distrito: "Abrantes", populacao: 1655, domicilios: 1103, area: 757.0, densidade: 2.19, classificacao: "Baixa" },
+            { id: 15, nome: "Cachoeirinha", distrito: "Abrantes", populacao: 17, domicilios: 12, area: 408.3, densidade: 0.04, classificacao: "Muito Baixa" },
+            { id: 16, nome: "Cajazeiras de Abrantes", distrito: "Abrantes", populacao: 662, domicilios: 473, area: 595.0, densidade: 1.11, classificacao: "Muito Baixa" },
+            { id: 17, nome: "Camaçari de Dentro", distrito: "Sede", populacao: 5442, domicilios: 2721, area: 73.2, densidade: 74.34, classificacao: "Alta" },
+            { id: 18, nome: "Cascalheira", distrito: "Abrantes", populacao: 175, domicilios: 97, area: 207.4, densidade: 0.84, classificacao: "Muito Baixa" },
+            { id: 19, nome: "Catu de Abrantes", distrito: "Abrantes", populacao: 4263, domicilios: 2842, area: 96.2, densidade: 44.31, classificacao: "Muito Alta" },
+            { id: 20, nome: "Centro", distrito: "Sede", populacao: 3080, domicilios: 1540, area: 103.1, densidade: 29.87, classificacao: "Média" },
+            { id: 21, nome: "Coqueiros de Arembepe", distrito: "Abrantes", populacao: 2387, domicilios: 1492, area: 437.3, densidade: 5.46, classificacao: "Média" },
+            { id: 22, nome: "Coqueiros de Monte Gordo", distrito: "Monte Gordo", populacao: 1681, domicilios: 1422, area: 1233.6, densidade: 1.36, classificacao: "Baixa" },
+            { id: 23, nome: "Cristo Redentor", distrito: "Sede", populacao: 884, domicilios: 447, area: 27.8, densidade: 31.8, classificacao: "Média" },
+            { id: 24, nome: "Dois de Julho", distrito: "Sede", populacao: 2917, domicilios: 1535, area: 29.3, densidade: 99.56, classificacao: "Alta" },
+            { id: 25, nome: "Dom Avelar", distrito: "Sede", populacao: 502, domicilios: 264, area: 3.7, densidade: 135.68, classificacao: "Muito Alta" },
+            { id: 26, nome: "FICAM", distrito: "Sede", populacao: 1966, domicilios: 983, area: 17.8, densidade: 110.45, classificacao: "Muito Alta" },
+            { id: 27, nome: "Genipabu", distrito: "Monte Gordo", populacao: 512, domicilios: 1511, area: 704.0, densidade: 0.73, classificacao: "Muito Baixa" },
+            { id: 28, nome: "Gleba A", distrito: "Sede", populacao: 3452, domicilios: 1726, area: 46.2, densidade: 74.72, classificacao: "Alta" },
+            { id: 29, nome: "Gleba B", distrito: "Sede", populacao: 4078, domicilios: 2039, area: 41.8, densidade: 97.56, classificacao: "Alta" },
+            { id: 30, nome: "Gleba C", distrito: "Sede", populacao: 5324, domicilios: 2535, area: 47.3, densidade: 112.56, classificacao: "Muito Alta" },
+            { id: 31, nome: "Gleba E", distrito: "Sede", populacao: 4253, domicilios: 2025, area: 47.3, densidade: 89.92, classificacao: "Alta" },
+            { id: 32, nome: "Gleba H", distrito: "Sede", populacao: 3228, domicilios: 1537, area: 196.6, densidade: 16.42, classificacao: "Baixa" },
+            { id: 33, nome: "Gravatá", distrito: "Sede", populacao: 4244, domicilios: 2122, area: 37.0, densidade: 114.7, classificacao: "Muito Alta" },
+            { id: 34, nome: "Guarajuba", distrito: "Monte Gordo", populacao: 308, domicilios: 2295, area: 454.0, densidade: 0.68, classificacao: "Muito Baixa" },
+            { id: 35, nome: "Industrial", distrito: "Sede", populacao: 10800, domicilios: 5684, area: 254.5, densidade: 42.44, classificacao: "Média" },
+            { id: 36, nome: "Interlagos", distrito: "Abrantes", populacao: 617, domicilios: 411, area: 542.6, densidade: 1.14, classificacao: "Muito Baixa" },
+            { id: 37, nome: "Itacimirim", distrito: "Monte Gordo", populacao: 520, domicilios: 2891, area: 850.2, densidade: 0.61, classificacao: "Muito Baixa" },
+            { id: 38, nome: "Jardim Brasília", distrito: "Sede", populacao: 2724, domicilios: 1362, area: 32.2, densidade: 84.6, classificacao: "Alta" },
+            { id: 39, nome: "Jardim Limoeiro", distrito: "Sede", populacao: 5644, domicilios: 2822, area: 355.7, densidade: 15.87, classificacao: "Baixa" },
+            { id: 40, nome: "Jauá", distrito: "Abrantes", populacao: 5018, domicilios: 3345, area: 418.7, densidade: 11.98, classificacao: "Média" },
+            { id: 41, nome: "Lama Preta", distrito: "Sede", populacao: 6920, domicilios: 3460, area: 183.9, densidade: 37.63, classificacao: "Média" },
+            { id: 42, nome: "Loteamento Montenegro", distrito: "Sede", populacao: 1192, domicilios: 662, area: 188.3, densidade: 6.33, classificacao: "Muito Baixa" },
+            { id: 43, nome: "Machadinho", distrito: "Sede", populacao: 1013, domicilios: 563, area: 197.2, densidade: 5.14, classificacao: "Muito Baixa" },
+            { id: 44, nome: "Malícia", distrito: "Abrantes", populacao: 4603, domicilios: 2877, area: 478.6, densidade: 9.62, classificacao: "Média" },
+            { id: 45, nome: "Mangueiral", distrito: "Sede", populacao: 1108, domicilios: 554, area: 9.5, densidade: 116.63, classificacao: "Muito Alta" },
+            { id: 46, nome: "Massaranduba", distrito: "Sede", populacao: 238, domicilios: 132, area: 368.5, densidade: 0.65, classificacao: "Muito Baixa" },
+            { id: 47, nome: "Monte Gordo", distrito: "Monte Gordo", populacao: 9342, domicilios: 5725, area: 1134.9, densidade: 8.23, classificacao: "Alta" },
+            { id: 48, nome: "Natal", distrito: "Sede", populacao: 3414, domicilios: 1707, area: 31.7, densidade: 107.7, classificacao: "Muito Alta" },
+            { id: 49, nome: "Nova Abrantes", distrito: "Abrantes", populacao: 11429, domicilios: 7619, area: 739.4, densidade: 15.46, classificacao: "Alta" },
+            { id: 50, nome: "Nova Aliança - PHOC I", distrito: "Sede", populacao: 4076, domicilios: 1941, area: 41.7, densidade: 97.75, classificacao: "Alta" },
+            { id: 51, nome: "Nova Vitória", distrito: "Sede", populacao: 9861, domicilios: 5190, area: 78.8, densidade: 125.14, classificacao: "Muito Alta" },
+            { id: 52, nome: "Novo Horizonte", distrito: "Sede", populacao: 3152, domicilios: 1659, area: 121.4, densidade: 25.96, classificacao: "Média" },
+            { id: 53, nome: "Parafuso", distrito: "Sede", populacao: 2869, domicilios: 1594, area: 296.0, densidade: 9.69, classificacao: "Baixa" },
+            { id: 54, nome: "Parque das Dunas", distrito: "Abrantes", populacao: 2301, domicilios: 1534, area: 208.1, densidade: 11.06, classificacao: "Média" },
+            { id: 55, nome: "Parque das Mangabas", distrito: "Sede", populacao: 4887, domicilios: 2715, area: 183.5, densidade: 26.63, classificacao: "Média" },
+            { id: 56, nome: "Parque das Palmeiras", distrito: "Sede", populacao: 832, domicilios: 416, area: 18.7, densidade: 44.49, classificacao: "Média" },
+            { id: 57, nome: "Parque Florestal", distrito: "Sede", populacao: 726, domicilios: 363, area: 11.2, densidade: 64.82, classificacao: "Alta" },
+            { id: 58, nome: "Parque Nascente do Rio Capivara", distrito: "Sede", populacao: 13500, domicilios: 6750, area: 1176.5, densidade: 11.47, classificacao: "Baixa" },
+            { id: 59, nome: "Parque Real Serra Verde", distrito: "Sede", populacao: 2614, domicilios: 1452, area: 481.4, densidade: 5.43, classificacao: "Muito Baixa" },
+            { id: 60, nome: "Parque Satélite", distrito: "Sede", populacao: 2612, domicilios: 1306, area: 30.8, densidade: 84.81, classificacao: "Alta" },
+            { id: 61, nome: "Parque Verde I", distrito: "Sede", populacao: 6863, domicilios: 3268, area: 140.2, densidade: 48.95, classificacao: "Média" },
+            { id: 62, nome: "Parque Verde II", distrito: "Sede", populacao: 2068, domicilios: 1149, area: 142.2, densidade: 14.54, classificacao: "Baixa" },
+            { id: 63, nome: "Parque Verde III", distrito: "Sede", populacao: 3213, domicilios: 1785, area: 335.5, densidade: 9.58, classificacao: "Baixa" },
+            { id: 64, nome: "Pé de Areia", distrito: "Abrantes", populacao: 1718, domicilios: 1145, area: 94.4, densidade: 18.2, classificacao: "Alta" },
+            { id: 65, nome: "Piaçaveira", distrito: "Sede", populacao: 2557, domicilios: 1346, area: 20.6, densidade: 124.13, classificacao: "Muito Alta" },
+            { id: 66, nome: "Polo de Apoio", distrito: "Sede", populacao: 46, domicilios: 24, area: 28.1, densidade: 1.64, classificacao: "Muito Baixa" },
+            { id: 67, nome: "Polo Industrial de Camaçari", distrito: "Sede", populacao: 362, domicilios: 201, area: 7405.7, densidade: 0.05, classificacao: "Muito Baixa" },
+            { id: 68, nome: "Polo Logístico", distrito: "Sede", populacao: 448, domicilios: 249, area: 439.3, densidade: 1.02, classificacao: "Muito Baixa" },
+            { id: 69, nome: "Poloplast", distrito: "Sede", populacao: 172, domicilios: 86, area: 189.9, densidade: 0.91, classificacao: "Muito Baixa" },
+            { id: 70, nome: "Ponto Certo", distrito: "Sede", populacao: 2234, domicilios: 1176, area: 48.3, densidade: 46.25, classificacao: "Média" },
+            { id: 71, nome: "Quarenta e Seis", distrito: "Sede", populacao: 3524, domicilios: 1678, area: 38.8, densidade: 90.82, classificacao: "Alta" },
+            { id: 72, nome: "Recanto das Árvores", distrito: "Sede", populacao: 1735, domicilios: 826, area: 34.8, densidade: 49.86, classificacao: "Média" },
+            { id: 73, nome: "Renascer - PHOC II", distrito: "Sede", populacao: 6705, domicilios: 3193, area: 53.4, densidade: 125.56, classificacao: "Muito Alta" },
+            { id: 74, nome: "Rio da Prata", distrito: "Sede", populacao: 2124, domicilios: 1180, area: 134.9, densidade: 15.74, classificacao: "Baixa" },
+            { id: 75, nome: "Santa Maria", distrito: "Sede", populacao: 4878, domicilios: 2323, area: 95.3, densidade: 51.19, classificacao: "Média" },
+            { id: 76, nome: "Santo Antônio", distrito: "Sede", populacao: 914, domicilios: 457, area: 159.3, densidade: 5.74, classificacao: "Muito Baixa" },
+            { id: 77, nome: "São Bento", distrito: "Monte Gordo", populacao: 1298, domicilios: 499, area: 51.2, densidade: 25.35, classificacao: "Muito Alta" },
+            { id: 78, nome: "Sítio São Gonçalo", distrito: "Abrantes", populacao: 14, domicilios: 10, area: 202.2, densidade: 0.07, classificacao: "Muito Baixa" },
+            { id: 79, nome: "Tancredo Neves - PHOC III", distrito: "Sede", populacao: 3572, domicilios: 1701, area: 33.9, densidade: 105.37, classificacao: "Alta" },
+            { id: 80, nome: "Triângulo", distrito: "Sede", populacao: 22, domicilios: 12, area: 1.1, densidade: 20.0, classificacao: "Baixa" },
+            { id: 81, nome: "Vale do Landirana", distrito: "Abrantes", populacao: 6557, domicilios: 4098, area: 1202.6, densidade: 5.45, classificacao: "Média" },
+            { id: 82, nome: "Vargem Grande", distrito: "Abrantes", populacao: 226, domicilios: 174, area: 679.7, densidade: 0.33, classificacao: "Muito Baixa" },
+            { id: 83, nome: "Várzea da Meira", distrito: "Monte Gordo", populacao: 1888, domicilios: 386, area: 296.7, densidade: 6.36, classificacao: "Média" },
+            { id: 84, nome: "Verdes Horizontes", distrito: "Sede", populacao: 9709, domicilios: 5110, area: 130.8, densidade: 74.23, classificacao: "Alta" },
+            { id: 85, nome: "Vila de Abrantes", distrito: "Abrantes", populacao: 7074, domicilios: 4716, area: 194.4, densidade: 36.39, classificacao: "Muito Alta" },
+            { id: 86, nome: "Vila Goiana", distrito: "Sede", populacao: 428, domicilios: 214, area: 3.7, densidade: 115.68, classificacao: "Muito Alta" },
+            { id: 87, nome: "Vila Irma Dulce", distrito: "Sede", populacao: 892, domicilios: 446, area: 7.5, densidade: 118.93, classificacao: "Muito Alta" },
+            { id: 88, nome: "Vivea", distrito: "Sede", populacao: 0, domicilios: 0, area: 204.2, densidade: 0.0, classificacao: "Muito Baixa" }
+        ];
+
+        // Elementos do DOM
+        const distritoFilter = document.getElementById('distrito-filter');
+        const bairroSelect = document.getElementById('bairro-select');
+        const bairroDetalhes = document.getElementById('bairro-detalhes');
+        const totalBairrosEl = document.getElementById('total-bairros');
+        const totalPopulacaoEl = document.getElementById('total-populacao');
+        const chartVariableSelect = document.getElementById('chart-variable');
+        const bairroCountSlider = document.getElementById('bairro-count');
+        const bairroCountLabel = document.getElementById('bairro-count-label');
+
+        let bairrosChart;
+
+        // --- Funções de Inicialização e Atualização ---
+
+        function init() {
+            populateBairroSelect(bairrosData);
+            updateDashboard();
+            distritoFilter.addEventListener('change', updateDashboard);
+            bairroSelect.addEventListener('change', showBairroDetalhes);
+            chartVariableSelect.addEventListener('change', updateDashboard);
+            bairroCountSlider.addEventListener('input', () => {
+                 bairroCountLabel.textContent = bairroCountSlider.value;
+                 updateDashboard();
+            });
+        }
+
+        function updateDashboard() {
+            const distrito = distritoFilter.value;
+            let filteredData = bairrosData;
+
+            if (distrito !== 'todos') {
+                filteredData = bairrosData.filter(b => b.distrito === distrito);
+            }
+
+            updateCards(filteredData);
+            createChart(filteredData);
+        }
+
+        function populateBairroSelect(data) {
+            // Ordena os bairros por nome para o select
+            const sortedData = [...data].sort((a, b) => a.nome.localeCompare(b.nome));
+            bairroSelect.innerHTML = '<option value="" disabled selected>-- Selecione um Bairro --</option>';
+            sortedData.forEach(bairro => {
+                const option = document.createElement('option');
+                option.value = bairro.id;
+                option.textContent = bairro.nome;
+                bairroSelect.appendChild(option);
+            });
+        }
+
+        function updateCards(data) {
+            const totalPopulacao = data.reduce((sum, b) => sum + b.populacao, 0);
+            if (distritoFilter.value === 'todos') {
+                totalBairrosEl.textContent = bairrosData.length.toLocaleString('pt-BR');
+                const popTotalMunicipio = bairrosData.reduce((sum, b) => sum + b.populacao, 0);
+                totalPopulacaoEl.textContent = popTotalMunicipio.toLocaleString('pt-BR');
+            } else {
+                 totalBairrosEl.textContent = data.length.toLocaleString('pt-BR');
+                 totalPopulacaoEl.textContent = totalPopulacao.toLocaleString('pt-BR');
+            }
+        }
+
+        function showBairroDetalhes() {
+            const bairroId = parseInt(bairroSelect.value);
+            const bairro = bairrosData.find(b => b.id === bairroId);
+            bairroDetalhes.innerHTML = '';
+
+            if (!bairro) {
+                bairroDetalhes.classList.add('hidden');
+                return;
+            }
+
+            const getDensityColor = (classification) => {
+                switch (classification) {
+                    case 'Muito Alta': return 'text-red-600';
+                    case 'Alta': return 'text-orange-500';
+                    case 'Média': return 'text-yellow-500';
+                    case 'Baixa': return 'text-green-500';
+                    case 'Muito Baixa': return 'text-blue-500';
+                    default: return 'text-gray-700';
+                }
+            };
+            
+            const details = [
+                { label: 'Distrito', value: bairro.distrito, icon: '🗺️' },
+                { label: 'População (2022)', value: bairro.populacao.toLocaleString('pt-BR'), icon: '👥' },
+                { label: 'Domicílios (CNEFE)', value: bairro.domicilios.toLocaleString('pt-BR'), icon: '🏠' },
+                { label: 'Área', value: `${bairro.area.toLocaleString('pt-BR')} Ha`, icon: '🏞️' },
+                { label: 'Densidade', value: `${bairro.densidade.toLocaleString('pt-BR')} Hab/Ha`, icon: '📊' },
+                { label: 'Classificação', value: bairro.classificacao, icon: '🏷️', colorClass: getDensityColor(bairro.classificacao) },
+            ];
+            
+            details.forEach(detail => {
+                const card = document.createElement('div');
+                card.className = 'bg-gray-50 p-4 rounded-lg shadow-sm text-center';
+                card.innerHTML = `
+                    <div class="text-3xl mb-2">${detail.icon}</div>
+                    <p class="text-sm text-gray-600 font-semibold">${detail.label}</p>
+                    <p class="text-xl font-bold ${detail.colorClass || 'text-violet'}">${detail.value}</p>
+                `;
+                bairroDetalhes.appendChild(card);
+            });
+
+            bairroDetalhes.classList.remove('hidden');
+        }
+
+        function createChart(data) {
+            const ctx = document.getElementById('bairrosChart').getContext('2d');
+            const variable = chartVariableSelect.value;
+            const count = parseInt(bairroCountSlider.value);
+            
+            // Ordena os dados em ordem decrescente pela variável selecionada
+            const sortedData = [...data].sort((a, b) => b[variable] - a[variable]).slice(0, count);
+
+            const labels = sortedData.map(b => b.nome);
+            const values = sortedData.map(b => b[variable]);
+
+            const variableLabels = {
+                populacao: 'População (2022)',
+                domicilios: 'Nº de Domicílios (2022)',
+                area: 'Área (Hectares)',
+                densidade: 'Densidade (Habitantes/Hectare)'
+            };
+            
+            const backgroundColors = [
+                'rgba(139, 92, 246, 0.7)', 'rgba(192, 132, 252, 0.7)', 'rgba(250, 204, 21, 0.7)',
+                'rgba(249, 115, 22, 0.7)', 'rgba(239, 68, 68, 0.7)', 'rgba(59, 130, 246, 0.7)',
+                'rgba(16, 185, 129, 0.7)', 'rgba(236, 72, 153, 0.7)', 'rgba(99, 102, 241, 0.7)',
+                'rgba(14, 165, 233, 0.7)'
+            ];
+
+             const borderColors = [
+                'rgba(139, 92, 246, 1)', 'rgba(192, 132, 252, 1)', 'rgba(250, 204, 21, 1)',
+                'rgba(249, 115, 22, 1)', 'rgba(239, 68, 68, 1)', 'rgba(59, 130, 246, 1)',
+                'rgba(16, 185, 129, 1)', 'rgba(236, 72, 153, 1)', 'rgba(99, 102, 241, 1)',
+                'rgba(14, 165, 233, 1)'
+            ];
+
+            if (bairrosChart) {
+                bairrosChart.destroy();
+            }
+
+            bairrosChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: variableLabels[variable],
+                        data: values,
+                        backgroundColor: backgroundColors,
+                        borderColor: borderColors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                             callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.x !== null) {
+                                        label += context.parsed.x.toLocaleString('pt-BR');
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString('pt-BR');
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Inicia a aplicação
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
